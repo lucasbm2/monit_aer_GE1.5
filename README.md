@@ -132,38 +132,33 @@ La visualización mediante Streamlit permitió convertir los datos en una interf
 
 ## Estructura recomendada del repositorio
 
+## Estructura del repositorio
+
 ```txt
-aerogenerador-monitorizacion-ia/
 ├── README.md
 ├── .gitignore
+├── requirements.txt
 ├── .env.example
 │
-├── docs/
-│   └── memoria_proyecto.pdf
+├── api
+│   └── api_prediccion.py
 │
-├── captura/
-│   └── captura_plc_demo.py
+├── captura
+│   └── monitor.py
 │
-├── api/
-│   └── main.py
+├── dashboard
 │
-├── dashboard/
-│   └── app.py
+├── docs
+│   └── DOCUMENTACION.docx
 │
-├── modelos/
-│   └── README.md
+├── entrenamiento
+│   └── IsolationForest_Generacion_Eolica_Colab.ipynb
 │
-├── notebooks/
-│   └── entrenamiento_isolation_forest.ipynb
+├── images
+│   └── matriz_confusion_isolation_forest.png
 │
-├── data/
-│   └── sample/
-│       └── datos_demo.csv
-│
-└── images/
-    ├── dashboard.png
-    ├── matriz_confusion.png
-    └── grafica_anomalias.png
+└── recogida
+    └── muestra.py
 
 
 ## Licencia
