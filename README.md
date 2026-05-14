@@ -2,7 +2,7 @@
 
 Proyecto final del Curso de Especialización en Inteligencia Artificial y Big Data.
 
-Este proyecto desarrolla una solución para capturar, procesar, visualizar y analizar datos procedentes de un aerogenerador GE 1.5. El sistema obtiene datos del PLC, procesa las señales recibidas, las almacena en CSV, las expone mediante una API, las visualiza en un dashboard desarrollado con Streamlit y aplica un modelo de inteligencia artificial para detectar comportamientos poco habituales en la generación eólica.
+Este proyecto desarrolla una solución para capturar, procesar, visualizar y analizar datos procedentes de un aerogenerador GE 1.5. El sistema obtiene datos del PLC, procesa las señales recibidas, las almacena en CSV, las expone mediante una API, las visualiza en un dashboard desarrollado con Streamlit y aplica un modelo de inteligencia artificial basado en Random Forest Regressor para estimar la generación esperada en kW a partir de la velocidad del viento.
 
 ## Índice
 
@@ -48,54 +48,66 @@ Para mejorar la organización del sistema y facilitar el acceso a los datos, se 
 
 La API se desarrolló utilizando:
 
-- FastAPI
-- Uvicorn
+- Flask
+- Flask-CORS
 - Pandas
-- Pickle / Joblib
+- Joblib
 
-FastAPI se utilizó para construir la API y definir las rutas de consulta. Uvicorn se utilizó como servidor para ejecutar la aplicación. Pandas permitió leer y procesar los datos almacenados en CSV. Pickle o Joblib permitieron cargar modelos de inteligencia artificial previamente entrenados.
+Flask se utilizó para construir la API y definir las rutas de consulta. Flask-CORS permitió habilitar peticiones desde el dashboard. Pandas permitió leer y procesar los datos almacenados en CSV. Joblib permitió cargar el modelo de inteligencia artificial previamente entrenado.
 
 La API permite separar las distintas partes del sistema:
 
 - Captura de datos
 - Procesamiento
 - Almacenamiento
-- Modelos de inteligencia artificial
+- Modelo de inteligencia artificial
 - Dashboard de visualización
 
 Gracias a esta estructura, el sistema resulta más modular y fácil de mantener.
 
 ## 4. Entrenamiento del modelo
 
-Para la detección de comportamientos anómalos en datos de generación eólica se utilizó el modelo `Isolation Forest`. El entrenamiento se realizó en Google Colab utilizando un dataset con datos diezminutales recopilados durante un mes.
+Para la predicción de generación eólica se utilizó un modelo `RandomForestRegressor`. El entrenamiento se realizó en Google Colab utilizando un dataset con datos diezminutales recopilados durante un mes.
 
-Isolation Forest es un algoritmo de aprendizaje no supervisado. Se eligió porque no se disponía de etiquetas reales de fallo para cada registro del dataset. Es decir, los datos no estaban clasificados previamente como normales o anómalos.
+El objetivo del modelo fue estimar la generación esperada en kW a partir de la velocidad del viento. Para ello, se utilizó la variable `V_WIN` como entrada principal del modelo y la variable `P_ACT` como variable objetivo, correspondiente a la potencia activa generada.
 
-El modelo analiza el comportamiento conjunto de variables como:
+`RandomForestRegressor` es un algoritmo de aprendizaje supervisado orientado a problemas de regresión. Se eligió este modelo porque permite predecir valores numéricos continuos y porque se adapta bien a relaciones no lineales, como la relación existente entre la velocidad del viento y la potencia generada por un aerogenerador.
 
-- Velocidad del viento
-- Potencia activa
-- Temperaturas
-- Vibraciones
-- Señales eléctricas
+El modelo funciona construyendo varios árboles de decisión durante el entrenamiento. Cada árbol realiza una predicción individual y el resultado final se obtiene combinando las predicciones de todos ellos. Esto permite obtener una estimación más estable que la de un único árbol de decisión.
 
-El objetivo es estudiar si la generación en kW se comporta de forma coherente respecto a las condiciones registradas en el sistema.
+Antes de entrenar el modelo, se preparó el dataset en Google Colab. En esta fase se cargaron los datos, se eliminaron registros vacíos o no válidos y se seleccionaron las columnas necesarias para el entrenamiento. Posteriormente, se separaron los datos en variables de entrada y variable objetivo.
 
-Una vez entrenado el modelo, se obtuvo para cada registro un score de anomalía y una etiqueta indicando si el registro se consideraba normal o anómalo.
+En este caso, la entrada del modelo fue:
 
-Evaluación aproximada basada en la variable `V_WIN`:
+- `V_WIN`: velocidad del viento.
 
-## Matriz de confusión
+La variable objetivo fue:
 
-La siguiente imagen muestra la matriz de confusión obtenida para el modelo Isolation Forest, utilizando como referencia aproximada los valores extremos de la variable `V_WIN`.
+- `P_ACT`: potencia activa generada en kW.
 
-![Matriz de confusión Isolation Forest](images/matriz_confusion_isolation_forest.png)
-- Verdaderos negativos: 413
-- Falsos positivos: 2
-- Falsos negativos: 6
-- Verdaderos positivos: 11
+Una vez entrenado el modelo, se guardó en un archivo `.pkl` para poder reutilizarlo desde la API sin necesidad de volver a entrenarlo. También se guardó el listado de variables utilizadas, asegurando que durante la predicción se empleen las mismas columnas que durante el entrenamiento.
 
-Estos resultados indican que el modelo clasificó correctamente la mayoría de los registros normales y detectó una parte importante de los comportamientos extremos asociados a la velocidad del viento.
+En la integración con el sistema, la API carga el modelo entrenado y recibe los valores capturados desde el PLC. A partir de la velocidad del viento, el modelo calcula la potencia esperada en kW. Esta predicción se compara con la potencia real medida, permitiendo analizar si la generación se encuentra dentro de un comportamiento normal o si existe una desviación de rendimiento.
+
+### Matriz de confusión
+
+La siguiente imagen muestra la matriz de confusión obtenida para el modelo `RandomForestRegressor`, utilizando una validación simplificada basada en la comparación entre la generación real y la generación esperada.
+
+![Matriz de confusión Random Forest](images/matriz_confusion_random_forest.png)
+
+- **Verdaderos negativos: 75**  
+  Representan los casos en los que la generación real estaba dentro de lo esperado y el modelo también los clasificó como funcionamiento normal. Es decir, la potencia generada era coherente con la potencia estimada a partir del viento.
+
+- **Falsos positivos: 8**  
+  Son registros que realmente tenían una generación normal, pero el modelo los clasificó como desviación. En la práctica serían avisos preventivos o alertas innecesarias, ya que el comportamiento real no se alejaba de forma importante de lo esperado.
+
+- **Falsos negativos: 4**  
+  Son casos en los que sí existía una desviación entre la generación real y la generación esperada, pero el modelo los clasificó como normales. Esto indica que algunas desviaciones no fueron detectadas por el sistema.
+
+- **Verdaderos positivos: 0**  
+  Son los casos en los que existía una desviación real y el modelo también la detectó correctamente. En esta validación no se obtuvieron verdaderos positivos, por lo que la detección de desviaciones queda como punto de mejora.
+
+Estos resultados indican que el modelo reconoce correctamente la mayoría de los registros normales de generación, aunque la detección de desviaciones importantes entre la potencia real y la potencia esperada debe mejorarse. Por tanto, el modelo se considera una primera aproximación válida para estimar la generación esperada en kW a partir de la velocidad del viento.
 
 ## 5. Graficación de los datos
 
@@ -124,13 +136,11 @@ Con este proyecto se ha conseguido construir un sistema completo desde cero, par
 
 Una de las partes más importantes del trabajo ha sido transformar paquetes binarios difíciles de interpretar en valores comprensibles como potencia, velocidad del viento, RPM, temperaturas, vibraciones y estados del sistema. Esto permitió generar un archivo CSV con datos organizados y preparados para su uso posterior.
 
-También se desarrolló una API para consultar los datos de forma más ordenada desde otras partes del sistema. Gracias a esto, el proyecto queda mejor estructurado y resulta más fácil conectar la captura de datos, los modelos de inteligencia artificial y el dashboard.
+También se desarrolló una API para consultar los datos de forma más ordenada desde otras partes del sistema. Gracias a esto, el proyecto queda mejor estructurado y resulta más fácil conectar la captura de datos, el modelo de inteligencia artificial y el dashboard.
 
-En la parte de inteligencia artificial, el modelo Isolation Forest permitió detectar comportamientos poco habituales en los datos de generación eólica sin necesidad de disponer de etiquetas reales de fallo. Esto lo convierte en una buena aproximación inicial para analizar desviaciones de comportamiento.
+En la parte de inteligencia artificial, el modelo `RandomForestRegressor` permitió estimar la generación esperada en kW a partir de la velocidad del viento. Esta predicción permitió comparar la potencia real con la potencia esperada y analizar posibles desviaciones de rendimiento del aerogenerador.
 
 La visualización mediante Streamlit permitió convertir los datos en una interfaz clara y sencilla de interpretar. En lugar de trabajar únicamente con archivos CSV o valores por consola, el dashboard permite observar la evolución de las variables principales y revisar el comportamiento del aerogenerador.
-
-## Estructura recomendada del repositorio
 
 ## Estructura del repositorio
 
@@ -152,15 +162,10 @@ La visualización mediante Streamlit permitió convertir los datos en una interf
 │   └── DOCUMENTACION.docx
 │
 ├── entrenamiento
-│   └── IsolationForest_Generacion_Eolica_Colab.ipynb
+│   └── entrenamiento_random_forest.ipynb
 │
 ├── images
-│   └── matriz_confusion_isolation_forest.png
+│   └── matriz_confusion_random_forest.png
 │
 └── recogida
     └── muestra.py
-
-
-## Licencia
-
-Todos los derechos reservados. Este repositorio se publica únicamente con fines académicos y de consulta.
