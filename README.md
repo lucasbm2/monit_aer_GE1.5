@@ -172,6 +172,18 @@ La visualización mediante Streamlit permitió convertir los datos en una interf
 
 ```
 
+## Ejecución
+
+Para ejecutar el sistema se deben abrir tres ventanas de CMD como administrador.
+
+### 1. Captura de datos
+
+En la primera ventana se ejecuta el script de captura de datos:
+
+```bash
+python final.py
+```
+
 ### 2. API de predicción
 
 En la segunda ventana se ejecuta la API de predicción:
