@@ -169,3 +169,37 @@ La visualización mediante Streamlit permitió convertir los datos en una interf
 │
 └── recogida
     └── muestra.py
+
+## Ejecución
+
+Para ejecutar el sistema se deben abrir tres ventanas de CMD como administrador.
+
+### 1. Captura de datos
+
+En la primera ventana se ejecuta el script de captura de datos:
+
+```bash
+python final.py
+```
+
+### 2. API de predicción
+
+En la segunda ventana se ejecuta la API de predicción:
+
+```bash
+python api_prediccion.py
+```
+
+### 3. Dashboard
+
+En la tercera ventana se ejecuta el dashboard:
+
+```bash
+python dashboard.py
+```
+
+Cada ventana debe permanecer abierta mientras se utiliza el sistema, ya que cada script realiza una función distinta:
+
+- `final.py`: captura y guarda los datos del aerogenerador.
+- `api_prediccion.py`: carga el modelo y devuelve la predicción de generación esperada.
+- `dashboard.py`: muestra la interfaz visual con los datos y la predicción.
